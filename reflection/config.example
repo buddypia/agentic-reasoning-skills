@@ -1,0 +1,86 @@
+# ===========================================
+# Multi-LLM Reflection Configuration
+# リフレクションパターン マルチエージェント設定
+# ===========================================
+#
+# このファイルを config.yaml にコピーして設定をカスタマイズしてください
+#
+# 設定の優先順位 (高い順):
+#   1. CLI引数 (--generator-model, --critic-provider, etc.)
+#   2. 環境変数 (REFLECTION_<ROLE>_<KEY>, <PROVIDER>_API_KEY)
+#   3. 設定ファイル (このファイル)
+#   4. デフォルト値
+#
+# ===========================================
+
+# -------------------------------------------
+# Generator Agent (初期案作成)
+# デフォルト: Gemini
+# -------------------------------------------
+generator:
+  provider: gemini              # gemini, anthropic, openai, mock, または random
+  model: gemini-3-pro-preview   # モデルID
+  # api_key: your_key_here      # または GEMINI_API_KEY 環境変数を使用
+  # base_url: null              # カスタムベースURL (オプション)
+  temperature: 0.7              # 生成の多様性 (0.0 - 1.0)
+
+# -------------------------------------------
+# Critic Agent (批評・改善提案)
+# デフォルト: Claude (Anthropic)
+# -------------------------------------------
+critic:
+  provider: anthropic           # gemini, anthropic, openai, mock, または random
+  model: claude-opus-4-1-20250805  # モデルID
+  # api_key: your_key_here      # または ANTHROPIC_API_KEY 環境変数を使用
+  temperature: 0.7
+
+# -------------------------------------------
+# Refiner Agent (最終版作成)
+# デフォルト: OpenAI
+# -------------------------------------------
+refiner:
+  provider: openai              # gemini, anthropic, openai, mock, または random
+  model: gpt-5.2                # モデルID
+  # api_key: your_key_here      # または OPENAI_API_KEY 環境変数を使用
+  # base_url: null              # Azure OpenAI などのカスタムエンドポイント
+  temperature: 0.7
+
+# -------------------------------------------
+# グローバル設定
+# 各エージェントで個別に指定されていない場合に適用
+# -------------------------------------------
+global:
+  # fixed | random | shuffle
+  provider_strategy: fixed
+  temperature: 0.7
+
+# ===========================================
+# 使用例
+# ===========================================
+#
+# 1. APIキーの設定:
+#    - .env ファイルに GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY を設定
+#    - または各エージェントの api_key フィールドに直接設定
+#
+# 2. モデルの変更:
+#    - このファイルの model フィールドを変更
+#    - または環境変数: REFLECTION_GENERATOR_MODEL=gemini-3-pro-preview
+#    - または CLI: --generator-model gemini-3-pro-preview
+#
+# 3. プロバイダーの変更:
+#    - 例: 全てのエージェントにClaudeを使用する場合
+#      generator:
+#        provider: anthropic
+#        model: claude-3-5-sonnet-latest
+#
+# 4. 設定詳細の確認:
+#    python main.py --show-config
+#
+# 5. ランダムプロバイダー選択:
+#    - CLI: python main.py --random-providers "プロンプト"
+#    - 個別指定: python main.py --generator-provider random "プロンプト"
+#    - 設定ファイル:
+#      generator:
+#        provider: random
+#
+# ===========================================

@@ -1,0 +1,111 @@
+# ===========================================
+# Multi-LLM Meta-Cognition Configuration (5段階)
+# メタ認知パターン マルチエージェント設定
+# ===========================================
+#
+# このファイルを config.yaml にコピーして設定をカスタマイズしてください
+#
+# 設定の優先順位 (高い順):
+#   1. CLI引数 (--decomposer-model, --verifier-provider, etc.)
+#   2. 環境変数 (METACOGNITION_<ROLE>_<KEY>, <PROVIDER>_API_KEY)
+#   3. 設定ファイル (このファイル)
+#   4. デフォルト値
+#
+# ===========================================
+
+# -------------------------------------------
+# Decomposer (分解)
+# デフォルト: Gemini
+# -------------------------------------------
+decomposer:
+  provider: gemini              # gemini, anthropic, openai, または mock
+  model: gemini-3-pro-preview   # モデルID
+  # api_key: your_key_here      # または GEMINI_API_KEY 環境変数を使用
+  # base_url: null              # カスタムベースURL (オプション)
+  temperature: 0.7              # 生成の多様性 (0.0 - 1.0)
+  timeout: 120                  # タイムアウト (秒)
+
+# -------------------------------------------
+# Solver (解決)
+# デフォルト: Gemini
+# -------------------------------------------
+solver:
+  provider: gemini              # gemini, anthropic, openai, または mock
+  model: gemini-3-pro-preview
+  # api_key: your_key_here
+  temperature: 0.7
+  timeout: 120
+
+# -------------------------------------------
+# Verifier (検証)
+# デフォルト: Claude (Anthropic)
+# -------------------------------------------
+verifier:
+  provider: anthropic           # gemini, anthropic, openai, または mock
+  model: claude-opus-4-1-20250805
+  # api_key: your_key_here      # または ANTHROPIC_API_KEY 環境変数を使用
+  temperature: 0.7
+  timeout: 120
+
+# -------------------------------------------
+# Integrator (統合)
+# デフォルト: OpenAI
+# -------------------------------------------
+integrator:
+  provider: openai              # gemini, anthropic, openai, または mock
+  model: gpt-5.2
+  # api_key: your_key_here      # または OPENAI_API_KEY 環境変数を使用
+  # base_url: null              # Azure OpenAI などのカスタムエンドポイント
+  temperature: 0.7
+  timeout: 120
+
+# -------------------------------------------
+# Reflector (反省)
+# デフォルト: OpenAI
+# -------------------------------------------
+reflector:
+  provider: openai              # gemini, anthropic, openai, または mock
+  model: gpt-5.2
+  # api_key: your_key_here      # または OPENAI_API_KEY 環境変数を使用
+  # base_url: null
+  temperature: 0.7
+  timeout: 120
+
+# -------------------------------------------
+# グローバル設定
+# 各エージェントで個別に指定されていない場合に適用
+# -------------------------------------------
+global:
+  # fixed | random | shuffle
+  provider_strategy: fixed
+  temperature: 0.7
+  timeout: 120
+  # nested | flat
+  output_schema: nested
+
+# ===========================================
+# 使用例
+# ===========================================
+#
+# 1. APIキーの設定:
+#    - .env ファイルに GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY を設定
+#    - または各エージェントの api_key フィールドに直接設定
+#
+# 2. モデルの変更:
+#    - このファイルの model フィールドを変更
+#    - または環境変数: METACOGNITION_DECOMPOSER_MODEL=gemini-3-pro-preview
+#    - または CLI: --decomposer-model gemini-3-pro-preview
+#
+# 3. プロバイダーの変更:
+#    - 例: 検証と反省をClaudeにする場合
+#      verifier:
+#        provider: anthropic
+#        model: claude-3-5-sonnet-latest
+#      reflector:
+#        provider: anthropic
+#        model: claude-3-5-sonnet-latest
+#
+# 4. 設定詳細の確認:
+#    python main.py --show-config
+#
+# ===========================================

@@ -1,0 +1,26 @@
+# Copy to config.yaml or config.json and edit values as needed.
+# YAML format example.
+
+global:
+  # fixed | random | shuffle
+  provider_strategy: fixed
+  temperature: 0.7
+
+proponent:
+  provider: gemini
+  model: gemini-3-pro-preview
+  api_key: YOUR_GEMINI_API_KEY
+  temperature: 0.7
+
+opponent:
+  provider: anthropic
+  model: claude-opus-4-1-20250805
+  api_key: YOUR_ANTHROPIC_API_KEY
+  temperature: 0.7
+
+moderator:
+  provider: openai
+  model: gpt-5.2
+  api_key: YOUR_OPENAI_API_KEY
+  base_url: https://api.openai.com/v1
+  temperature: 0.7
