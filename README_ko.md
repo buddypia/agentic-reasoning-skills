@@ -58,7 +58,7 @@ export ANTHROPIC_API_KEY="your-key"
 export OPENAI_API_KEY="your-key"
 
 # 리플렉션 패턴 실행
-cd reflection
+cd skills/reflection
 pip install -r scripts/requirements.txt
 python scripts/main.py "마이크로서비스 vs 모놀리스에 대한 기술 블로그 글을 작성해주세요"
 
@@ -158,13 +158,13 @@ python scripts/main.py --timeout 300 "복잡한 작업"       # 타임아웃 연
 
 ```bash
 # 리플렉션
-cd reflection && pip install -r scripts/requirements.txt
+cd skills/reflection && pip install -r scripts/requirements.txt
 
 # 디베이트
-cd debate && pip install -r scripts/requirements.txt
+cd skills/debate && pip install -r scripts/requirements.txt
 
 # 메타인지
-cd meta-cognition && pip install -r scripts/requirements.txt
+cd skills/meta-cognition && pip install -r scripts/requirements.txt
 ```
 
 ### 의존성

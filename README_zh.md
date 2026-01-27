@@ -58,7 +58,7 @@ export ANTHROPIC_API_KEY="your-key"
 export OPENAI_API_KEY="your-key"
 
 # 运行反思模式
-cd reflection
+cd skills/reflection
 pip install -r scripts/requirements.txt
 python scripts/main.py "请写一篇关于微服务 vs 单体架构的技术博客"
 
@@ -158,13 +158,13 @@ python scripts/main.py --timeout 300 "复杂任务"         # 延长超时时间
 
 ```bash
 # 反思
-cd reflection && pip install -r scripts/requirements.txt
+cd skills/reflection && pip install -r scripts/requirements.txt
 
 # 辩论
-cd debate && pip install -r scripts/requirements.txt
+cd skills/debate && pip install -r scripts/requirements.txt
 
 # 元认知
-cd meta-cognition && pip install -r scripts/requirements.txt
+cd skills/meta-cognition && pip install -r scripts/requirements.txt
 ```
 
 ### 依赖项

@@ -69,4 +69,4 @@ python scripts/main.py "prompt" \
 
 ---
 
-📖 Full documentation: [Main README](../README.md) | [日本語](../README_ja.md) | [한국어](../README_ko.md)
+📖 Full documentation: [Main README](../../README.md) | [日本語](../../README_ja.md) | [한국어](../../README_ko.md)

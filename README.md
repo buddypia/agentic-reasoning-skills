@@ -58,7 +58,7 @@ export ANTHROPIC_API_KEY="your-key"
 export OPENAI_API_KEY="your-key"
 
 # Run Reflection pattern
-cd reflection
+cd skills/reflection
 pip install -r scripts/requirements.txt
 python scripts/main.py "Write a technical blog post about microservices vs monoliths"
 
@@ -158,13 +158,13 @@ python scripts/main.py --timeout 300 "Complex task"         # Extended timeout
 
 ```bash
 # Reflection
-cd reflection && pip install -r scripts/requirements.txt
+cd skills/reflection && pip install -r scripts/requirements.txt
 
 # Debate
-cd debate && pip install -r scripts/requirements.txt
+cd skills/debate && pip install -r scripts/requirements.txt
 
 # Meta-Cognition
-cd meta-cognition && pip install -r scripts/requirements.txt
+cd skills/meta-cognition && pip install -r scripts/requirements.txt
 ```
 
 ### Dependencies
@@ -330,7 +330,7 @@ git clone https://github.com/buddypia/agentic-reasoning-skills.git
 cd agentic-reasoning-skills
 python -m venv .venv
 source .venv/bin/activate
-pip install -r reflection/scripts/requirements.txt
+pip install -r skills/reflection/scripts/requirements.txt
 ```
 
 ---

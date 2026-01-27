@@ -58,7 +58,7 @@ export ANTHROPIC_API_KEY="your-key"
 export OPENAI_API_KEY="your-key"
 
 # リフレクションパターン実行
-cd reflection
+cd skills/reflection
 pip install -r scripts/requirements.txt
 python scripts/main.py "マイクロサービスvsモノリスについて技術ブログ記事を書いてください"
 
@@ -158,13 +158,13 @@ python scripts/main.py --timeout 300 "複雑なタスク"         # タイムア
 
 ```bash
 # リフレクション
-cd reflection && pip install -r scripts/requirements.txt
+cd skills/reflection && pip install -r scripts/requirements.txt
 
 # ディベート
-cd debate && pip install -r scripts/requirements.txt
+cd skills/debate && pip install -r scripts/requirements.txt
 
 # メタ認知
-cd meta-cognition && pip install -r scripts/requirements.txt
+cd skills/meta-cognition && pip install -r scripts/requirements.txt
 ```
 
 ### 依存関係
