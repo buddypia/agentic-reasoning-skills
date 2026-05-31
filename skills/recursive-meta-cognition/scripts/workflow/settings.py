@@ -1,8 +1,8 @@
-"""メタ認知パターン 設定管理（5段階）。
+"""リフレクションパターン 設定管理（5段階）。
 
 設定の優先順位 (高い順):
     1. CLI引数
-    2. 環境変数 (METACOGNITION_<ROLE>_<KEY> or <PROVIDER>_API_KEY)
+    2. 環境変数 (REFLECTION_<ROLE>_<KEY> or <PROVIDER>_API_KEY)
     3. 設定ファイル (config.yaml / config.json など)
     4. デフォルト値
 """
@@ -22,13 +22,13 @@ from .config import AgentConfig
 # =============================================================================
 
 DEFAULT_MODELS: dict[str, str] = {
-    # Google Gemini: Most intelligent (as of 2026-01)
-    "gemini": "gemini-3-pro-preview",
-    # Anthropic Claude: Most capable (as of 2026-01)
-    "anthropic": "claude-opus-4-1-20250805",
-    "claude": "claude-opus-4-1-20250805",
-    # OpenAI: Latest flagship (as of 2026-01)
-    "openai": "gpt-5.2",
+    # Google Gemini: Antigravity CLI 기본 (Gemini 3.5 Flash, 2026-05)
+    "gemini": "gemini-3.5-flash",
+    # Anthropic Claude: Claude Code CLI 최신 (2026-05)
+    "anthropic": "claude-opus-4-8",
+    "claude": "claude-opus-4-8",
+    # OpenAI: Codex CLI 최신 flagship (2026-04)
+    "openai": "gpt-5.5",
     # Mock provider (offline smoke tests)
     "mock": "mock-v1",
 }
@@ -81,14 +81,14 @@ class DefaultAgentSettings:
         if self.model:
             return self.model
         normalized = self.provider.strip().lower()
-        return DEFAULT_MODELS.get(normalized, "gpt-5.2")
+        return DEFAULT_MODELS.get(normalized, "gpt-5.5")
 
 
-DECOMPOSER_DEFAULTS = DefaultAgentSettings(provider="gemini", model="gemini-3-pro-preview")
-SOLVER_DEFAULTS = DefaultAgentSettings(provider="gemini", model="gemini-3-pro-preview")
-VERIFIER_DEFAULTS = DefaultAgentSettings(provider="anthropic", model="claude-opus-4-1-20250805")
-INTEGRATOR_DEFAULTS = DefaultAgentSettings(provider="openai", model="gpt-5.2")
-REFLECTOR_DEFAULTS = DefaultAgentSettings(provider="openai", model="gpt-5.2")
+DECOMPOSER_DEFAULTS = DefaultAgentSettings(provider="gemini", model="gemini-3.5-flash")
+SOLVER_DEFAULTS = DefaultAgentSettings(provider="gemini", model="gemini-3.5-flash")
+VERIFIER_DEFAULTS = DefaultAgentSettings(provider="anthropic", model="claude-opus-4-8")
+INTEGRATOR_DEFAULTS = DefaultAgentSettings(provider="openai", model="gpt-5.5")
+REFLECTOR_DEFAULTS = DefaultAgentSettings(provider="openai", model="gpt-5.5")
 
 
 # =============================================================================
@@ -112,56 +112,56 @@ class EnvVarKeys:
 
 
 DECOMPOSER_ENV_KEYS = EnvVarKeys(
-    provider="METACOGNITION_DECOMPOSER_PROVIDER",
-    model="METACOGNITION_DECOMPOSER_MODEL",
-    api_key="METACOGNITION_DECOMPOSER_API_KEY",
-    base_url="METACOGNITION_DECOMPOSER_BASE_URL",
-    temperature="METACOGNITION_DECOMPOSER_TEMPERATURE",
-    timeout="METACOGNITION_DECOMPOSER_TIMEOUT",
+    provider="REFLECTION_DECOMPOSER_PROVIDER",
+    model="REFLECTION_DECOMPOSER_MODEL",
+    api_key="REFLECTION_DECOMPOSER_API_KEY",
+    base_url="REFLECTION_DECOMPOSER_BASE_URL",
+    temperature="REFLECTION_DECOMPOSER_TEMPERATURE",
+    timeout="REFLECTION_DECOMPOSER_TIMEOUT",
     provider_api_key="GEMINI_API_KEY",
     provider_model="GEMINI_MODEL_ID",
 )
 
 SOLVER_ENV_KEYS = EnvVarKeys(
-    provider="METACOGNITION_SOLVER_PROVIDER",
-    model="METACOGNITION_SOLVER_MODEL",
-    api_key="METACOGNITION_SOLVER_API_KEY",
-    base_url="METACOGNITION_SOLVER_BASE_URL",
-    temperature="METACOGNITION_SOLVER_TEMPERATURE",
-    timeout="METACOGNITION_SOLVER_TIMEOUT",
+    provider="REFLECTION_SOLVER_PROVIDER",
+    model="REFLECTION_SOLVER_MODEL",
+    api_key="REFLECTION_SOLVER_API_KEY",
+    base_url="REFLECTION_SOLVER_BASE_URL",
+    temperature="REFLECTION_SOLVER_TEMPERATURE",
+    timeout="REFLECTION_SOLVER_TIMEOUT",
     provider_api_key="GEMINI_API_KEY",
     provider_model="GEMINI_MODEL_ID",
 )
 
 VERIFIER_ENV_KEYS = EnvVarKeys(
-    provider="METACOGNITION_VERIFIER_PROVIDER",
-    model="METACOGNITION_VERIFIER_MODEL",
-    api_key="METACOGNITION_VERIFIER_API_KEY",
-    base_url="METACOGNITION_VERIFIER_BASE_URL",
-    temperature="METACOGNITION_VERIFIER_TEMPERATURE",
-    timeout="METACOGNITION_VERIFIER_TIMEOUT",
+    provider="REFLECTION_VERIFIER_PROVIDER",
+    model="REFLECTION_VERIFIER_MODEL",
+    api_key="REFLECTION_VERIFIER_API_KEY",
+    base_url="REFLECTION_VERIFIER_BASE_URL",
+    temperature="REFLECTION_VERIFIER_TEMPERATURE",
+    timeout="REFLECTION_VERIFIER_TIMEOUT",
     provider_api_key="ANTHROPIC_API_KEY",
     provider_model="ANTHROPIC_MODEL_ID",
 )
 
 INTEGRATOR_ENV_KEYS = EnvVarKeys(
-    provider="METACOGNITION_INTEGRATOR_PROVIDER",
-    model="METACOGNITION_INTEGRATOR_MODEL",
-    api_key="METACOGNITION_INTEGRATOR_API_KEY",
-    base_url="METACOGNITION_INTEGRATOR_BASE_URL",
-    temperature="METACOGNITION_INTEGRATOR_TEMPERATURE",
-    timeout="METACOGNITION_INTEGRATOR_TIMEOUT",
+    provider="REFLECTION_INTEGRATOR_PROVIDER",
+    model="REFLECTION_INTEGRATOR_MODEL",
+    api_key="REFLECTION_INTEGRATOR_API_KEY",
+    base_url="REFLECTION_INTEGRATOR_BASE_URL",
+    temperature="REFLECTION_INTEGRATOR_TEMPERATURE",
+    timeout="REFLECTION_INTEGRATOR_TIMEOUT",
     provider_api_key="OPENAI_API_KEY",
     provider_model="OPENAI_CHAT_MODEL_ID",
 )
 
 REFLECTOR_ENV_KEYS = EnvVarKeys(
-    provider="METACOGNITION_REFLECTOR_PROVIDER",
-    model="METACOGNITION_REFLECTOR_MODEL",
-    api_key="METACOGNITION_REFLECTOR_API_KEY",
-    base_url="METACOGNITION_REFLECTOR_BASE_URL",
-    temperature="METACOGNITION_REFLECTOR_TEMPERATURE",
-    timeout="METACOGNITION_REFLECTOR_TIMEOUT",
+    provider="REFLECTION_REFLECTOR_PROVIDER",
+    model="REFLECTION_REFLECTOR_MODEL",
+    api_key="REFLECTION_REFLECTOR_API_KEY",
+    base_url="REFLECTION_REFLECTOR_BASE_URL",
+    temperature="REFLECTION_REFLECTOR_TEMPERATURE",
+    timeout="REFLECTION_REFLECTOR_TIMEOUT",
     provider_api_key="OPENAI_API_KEY",
     provider_model="OPENAI_CHAT_MODEL_ID",
 )
@@ -209,7 +209,7 @@ def resolve_api_key_for_provider(provider: str, role_api_key_env: str) -> Option
     """プロバイダーに基づいてAPIキーを解決
 
     優先順位:
-        1. ロール固有の環境変数 (METACOGNITION_<ROLE>_API_KEY)
+        1. ロール固有の環境変数 (REFLECTION_<ROLE>_API_KEY)
         2. プロバイダー固有の環境変数 (<PROVIDER>_API_KEY)
     """
 
@@ -259,7 +259,7 @@ def create_agent_config_from_env(
         elif isinstance(agent_config, dict) and "model" in agent_config:
             model = agent_config["model"]
         else:
-            model = DEFAULT_MODELS.get(provider.strip().lower(), "gpt-5.2")
+            model = DEFAULT_MODELS.get(provider.strip().lower(), "gpt-5.5")
 
     api_key = resolve_api_key_for_provider(provider, env_keys.api_key)
     if not api_key and isinstance(agent_config, dict):
@@ -361,13 +361,13 @@ def print_config_info() -> None:
 
 環境変数:
     [プロバイダー割当戦略]
-    METACOGNITION_PROVIDER_STRATEGY  : fixed / random / shuffle
-    METACOGNITION_PROVIDER_MODE      : 上記のエイリアス
-    METACOGNITION_RANDOM_PROVIDERS   : true/1/yes で random と同等
-    METACOGNITION_SHUFFLE_PROVIDERS  : true/1/yes で shuffle と同等
+    REFLECTION_PROVIDER_STRATEGY  : fixed / random / shuffle
+    REFLECTION_PROVIDER_MODE      : 上記のエイリアス
+    REFLECTION_RANDOM_PROVIDERS   : true/1/yes で random と同等
+    REFLECTION_SHUFFLE_PROVIDERS  : true/1/yes で shuffle と同等
 
     [出力スキーマ]
-    METACOGNITION_OUTPUT_SCHEMA  : nested / flat
+    REFLECTION_OUTPUT_SCHEMA  : nested / flat
 
     [APIキー]
     GEMINI_API_KEY / ANTHROPIC_API_KEY / OPENAI_API_KEY
@@ -377,55 +377,55 @@ def print_config_info() -> None:
     GEMINI_MODEL_ID / ANTHROPIC_MODEL_ID / OPENAI_CHAT_MODEL_ID
 
     [Decomposer (分解)]
-    METACOGNITION_DECOMPOSER_PROVIDER  : プロバイダー (gemini/anthropic/openai)
-    METACOGNITION_DECOMPOSER_MODEL     : モデルID
-    METACOGNITION_DECOMPOSER_API_KEY   : APIキー (または GEMINI_API_KEY)
-    METACOGNITION_DECOMPOSER_BASE_URL  : base_url (主にOpenAI向け)
-    METACOGNITION_DECOMPOSER_TEMPERATURE: 温度
-    METACOGNITION_DECOMPOSER_TIMEOUT    : タイムアウト（秒）
+    REFLECTION_DECOMPOSER_PROVIDER  : プロバイダー (gemini/anthropic/openai)
+    REFLECTION_DECOMPOSER_MODEL     : モデルID
+    REFLECTION_DECOMPOSER_API_KEY   : APIキー (または GEMINI_API_KEY)
+    REFLECTION_DECOMPOSER_BASE_URL  : base_url (主にOpenAI向け)
+    REFLECTION_DECOMPOSER_TEMPERATURE: 温度
+    REFLECTION_DECOMPOSER_TIMEOUT    : タイムアウト（秒）
 
     [Solver (解決)]
-    METACOGNITION_SOLVER_PROVIDER  : プロバイダー (gemini/anthropic/openai)
-    METACOGNITION_SOLVER_MODEL     : モデルID
-    METACOGNITION_SOLVER_API_KEY   : APIキー (または GEMINI_API_KEY)
-    METACOGNITION_SOLVER_BASE_URL  : base_url (主にOpenAI向け)
-    METACOGNITION_SOLVER_TEMPERATURE: 温度
-    METACOGNITION_SOLVER_TIMEOUT    : タイムアウト（秒）
+    REFLECTION_SOLVER_PROVIDER  : プロバイダー (gemini/anthropic/openai)
+    REFLECTION_SOLVER_MODEL     : モデルID
+    REFLECTION_SOLVER_API_KEY   : APIキー (または GEMINI_API_KEY)
+    REFLECTION_SOLVER_BASE_URL  : base_url (主にOpenAI向け)
+    REFLECTION_SOLVER_TEMPERATURE: 温度
+    REFLECTION_SOLVER_TIMEOUT    : タイムアウト（秒）
 
     [Verifier (検証)]
-    METACOGNITION_VERIFIER_PROVIDER  : プロバイダー (gemini/anthropic/openai)
-    METACOGNITION_VERIFIER_MODEL     : モデルID
-    METACOGNITION_VERIFIER_API_KEY   : APIキー (または ANTHROPIC_API_KEY)
-    METACOGNITION_VERIFIER_BASE_URL  : base_url (主にOpenAI向け)
-    METACOGNITION_VERIFIER_TEMPERATURE: 温度
-    METACOGNITION_VERIFIER_TIMEOUT    : タイムアウト（秒）
+    REFLECTION_VERIFIER_PROVIDER  : プロバイダー (gemini/anthropic/openai)
+    REFLECTION_VERIFIER_MODEL     : モデルID
+    REFLECTION_VERIFIER_API_KEY   : APIキー (または ANTHROPIC_API_KEY)
+    REFLECTION_VERIFIER_BASE_URL  : base_url (主にOpenAI向け)
+    REFLECTION_VERIFIER_TEMPERATURE: 温度
+    REFLECTION_VERIFIER_TIMEOUT    : タイムアウト（秒）
 
     [Integrator (統合)]
-    METACOGNITION_INTEGRATOR_PROVIDER  : プロバイダー (gemini/anthropic/openai)
-    METACOGNITION_INTEGRATOR_MODEL     : モデルID
-    METACOGNITION_INTEGRATOR_API_KEY   : APIキー (または OPENAI_API_KEY)
-    METACOGNITION_INTEGRATOR_BASE_URL  : base_url (または OPENAI_BASE_URL)
-    METACOGNITION_INTEGRATOR_TEMPERATURE: 温度
-    METACOGNITION_INTEGRATOR_TIMEOUT    : タイムアウト（秒）
+    REFLECTION_INTEGRATOR_PROVIDER  : プロバイダー (gemini/anthropic/openai)
+    REFLECTION_INTEGRATOR_MODEL     : モデルID
+    REFLECTION_INTEGRATOR_API_KEY   : APIキー (または OPENAI_API_KEY)
+    REFLECTION_INTEGRATOR_BASE_URL  : base_url (または OPENAI_BASE_URL)
+    REFLECTION_INTEGRATOR_TEMPERATURE: 温度
+    REFLECTION_INTEGRATOR_TIMEOUT    : タイムアウト（秒）
 
     [Reflector (反省)]
-    METACOGNITION_REFLECTOR_PROVIDER  : プロバイダー (gemini/anthropic/openai)
-    METACOGNITION_REFLECTOR_MODEL     : モデルID
-    METACOGNITION_REFLECTOR_API_KEY   : APIキー (または OPENAI_API_KEY)
-    METACOGNITION_REFLECTOR_BASE_URL  : base_url (または OPENAI_BASE_URL)
-    METACOGNITION_REFLECTOR_TEMPERATURE: 温度
-    METACOGNITION_REFLECTOR_TIMEOUT    : タイムアウト（秒）
+    REFLECTION_REFLECTOR_PROVIDER  : プロバイダー (gemini/anthropic/openai)
+    REFLECTION_REFLECTOR_MODEL     : モデルID
+    REFLECTION_REFLECTOR_API_KEY   : APIキー (または OPENAI_API_KEY)
+    REFLECTION_REFLECTOR_BASE_URL  : base_url (または OPENAI_BASE_URL)
+    REFLECTION_REFLECTOR_TEMPERATURE: 温度
+    REFLECTION_REFLECTOR_TIMEOUT    : タイムアウト（秒）
 
     [共通パラメータ（全ロールに適用。ロール別より低優先）]
-    METACOGNITION_TEMPERATURE       : 温度 (または LLM_TEMPERATURE)
-    METACOGNITION_TIMEOUT           : タイムアウト秒 (または LLM_TIMEOUT_SEC)
-    METACOGNITION_DEVUI_PORT        : DevUIポート (または DEVUI_PORT)
+    REFLECTION_TEMPERATURE       : 温度 (または LLM_TEMPERATURE)
+    REFLECTION_TIMEOUT           : タイムアウト秒 (または LLM_TIMEOUT_SEC)
+    REFLECTION_DEVUI_PORT        : DevUIポート (または DEVUI_PORT)
 
 デフォルト値:
-    Decomposer: gemini / gemini-3-pro-preview
-    Solver:    gemini / gemini-3-pro-preview
-    Verifier:  anthropic / claude-opus-4-1-20250805
-    Integrator: openai / gpt-5.2
-    Reflector:  openai / gpt-5.2
+    Decomposer: gemini / gemini-3.5-flash
+    Solver:    gemini / gemini-3.5-flash
+    Verifier:  anthropic / claude-opus-4-8
+    Integrator: openai / gpt-5.5
+    Reflector:  openai / gpt-5.5
 """
     )

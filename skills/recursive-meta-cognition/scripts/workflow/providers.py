@@ -361,25 +361,42 @@ class MockAdapter:
 
 def _build_mock_payload(schema_name: str, user_prompt: str) -> dict[str, Any]:
     """Return deterministic payloads for contract tests."""
-    if schema_name == "generator_output":
+    if schema_name == "decomposition_output":
         return {
-            "draft": "mock-draft",
-            "key_points": ["mock-key-point"],
+            "subtasks": ["mock-subtask"],
+            "assumptions": ["mock-assumption"],
+            "constraints": ["mock-constraint"],
+            "questions": ["mock-question"],
             "confidence": 0.5,
         }
-    if schema_name == "critic_output":
+    if schema_name == "solution_output":
         return {
-            "strengths": ["mock-strength"],
-            "weaknesses": ["mock-weakness"],
-            "suggestions": ["mock-suggestion"],
-            "overall_score": 5,
-            "critical_issues": [],
+            "solutions": [{"subtask": "mock-subtask", "answer": "mock-answer"}],
+            "open_questions": ["mock-open-question"],
+            "risks": ["mock-risk"],
+            "confidence": 0.5,
         }
-    if schema_name == "refiner_output":
+    if schema_name == "verification_output":
         return {
-            "final_content": "mock-final-content",
-            "improvements_made": ["mock-improvement"],
-            "quality_score": 7,
+            "issues": ["mock-issue"],
+            "corrections": ["mock-correction"],
+            "self_corrections": ["mock-self-correction"],
+            "validation_notes": ["mock-note"],
+            "confidence": 0.5,
+        }
+    if schema_name == "integration_output":
+        return {
+            "integrated_answer": "mock-integrated-answer",
+            "applied_corrections": ["mock-applied"],
+            "confidence": 0.5,
+        }
+    if schema_name == "reflection_output":
+        return {
+            "final_response": "mock-final-response",
+            "confidence_score": 0.5,
+            "uncertainties": ["mock-uncertainty"],
+            "self_corrections": ["mock-self-correction"],
+            "reflection_notes": ["mock-note"],
         }
     return {"message": f"mock-response for {schema_name}", "prompt": user_prompt}
 

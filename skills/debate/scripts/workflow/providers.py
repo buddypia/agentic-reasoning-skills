@@ -1,14 +1,88 @@
-"""Provider adapters for structured LLM calls."""
+"""Provider adapters — 구독 인증 CLI 백엔드(순수 CLI).
+
+별도 API 키 없이 사용자의 구독 인증으로 최신 모델을 호출한다:
+  - gemini             → Antigravity CLI (`agy -p`)    : 평문 출력 → JSON-only 지시 + Pydantic 검증
+  - anthropic / claude → Claude Code     (`claude -p`) : --json-schema 네이티브 구조화 출력
+  - openai             → Codex           (`codex exec`): --output-schema 네이티브 구조화 출력
+
+장문(long-form) 입력은 전부 stdin 경유(ARG_MAX / shell escaping 회피).
+역할 executor 는 무수정 — generate_structured() 인터페이스로 ProviderResponse 만 반환.
+
+환경 변수:
+  MULTILLM_REASONING_EFFORT   추론 강도 (기본 xhigh; Codex 에 적용)
+  MULTILLM_CLI_TIMEOUT        CLI 호출 타임아웃(초) (기본 360)
+  MULTILLM_AGY_PRINT_TIMEOUT  agy --print-timeout 값 (기본 5m)
+  MULTILLM_CLAUDE_MODEL / MULTILLM_CODEX_MODEL  per-backend 모델 override (옵션)
+"""
 
 from __future__ import annotations
 
 import asyncio
 import json
+import os
+import shutil
+import tempfile
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from .anthropic_utils import create_message_with_auto_max_tokens
-from .raw import extract_response_meta, to_jsonable
+from .raw import to_jsonable
+
+
+# =============================================================================
+# CLI 공통 헬퍼
+# =============================================================================
+
+def _cli_timeout() -> float:
+    try:
+        return float(os.getenv("MULTILLM_CLI_TIMEOUT", "360"))
+    except ValueError:
+        return 360.0
+
+
+def _reasoning_effort() -> str:
+    return os.getenv("MULTILLM_REASONING_EFFORT", "xhigh").strip() or "xhigh"
+
+
+def _agy_print_timeout() -> str:
+    return os.getenv("MULTILLM_AGY_PRINT_TIMEOUT", "5m").strip() or "5m"
+
+
+def _strip_code_fences(text: str) -> str:
+    cleaned = text.strip()
+    if not cleaned.startswith("```"):
+        return cleaned
+    cleaned = cleaned.strip("`").strip()
+    if cleaned.startswith("json"):
+        cleaned = cleaned[4:].strip()
+    return cleaned
+
+
+async def _run_cli(
+    cmd: list[str],
+    *,
+    stdin_text: str | None,
+    cwd: str | None,
+    timeout: float,
+) -> tuple[int, str, str]:
+    """CLI 를 subprocess 로 실행. 장문 입력은 stdin 경유. (rc, stdout, stderr) 반환."""
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdin=asyncio.subprocess.PIPE if stdin_text is not None else None,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        cwd=cwd,
+    )
+    payload = stdin_text.encode("utf-8") if stdin_text is not None else None
+    try:
+        out, err = await asyncio.wait_for(proc.communicate(payload), timeout=timeout)
+    except asyncio.TimeoutError:
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+        raise RuntimeError(f"CLI timeout after {timeout}s: {cmd[0]}")
+    rc = proc.returncode if proc.returncode is not None else 0
+    return rc, out.decode("utf-8", "replace"), err.decode("utf-8", "replace")
 
 
 @dataclass(slots=True)
@@ -40,34 +114,84 @@ class ProviderAdapter(Protocol):
         raise NotImplementedError
 
 
-def _extract_gemini_text(response: object) -> str:
-    candidates = getattr(response, "candidates", None)
-    parts_text: list[str] = []
-    if candidates:
-        for cand in candidates:
-            content = getattr(cand, "content", None)
-            if content is None and isinstance(cand, dict):
-                content = cand.get("content")
-            parts = getattr(content, "parts", None)
-            if parts is None and isinstance(content, dict):
-                parts = content.get("parts")
-            if not parts:
-                continue
-            for part in parts:
-                part_text = getattr(part, "text", None)
-                if part_text is None and isinstance(part, dict):
-                    part_text = part.get("text")
-                if isinstance(part_text, str) and part_text:
-                    parts_text.append(part_text)
-    if parts_text:
-        return "\n".join(parts_text).strip()
-    text = getattr(response, "text", None)
-    if isinstance(text, str) and text:
-        return text
-    return ""
+# =============================================================================
+# Claude Code CLI  (anthropic / claude)  — claude -p --json-schema (네이티브 구조화)
+# =============================================================================
+
+class ClaudeCliAdapter:
+    name = "claude"
+
+    async def generate_structured(
+        self,
+        *,
+        model: str,
+        api_key: str | None,
+        base_url: str | None,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float,
+        schema: dict[str, Any],
+        schema_name: str,
+        output_model: Any | None,
+    ) -> ProviderResponse:
+        binary = shutil.which("claude") or "claude"
+        model_id = os.getenv("MULTILLM_CLAUDE_MODEL") or model
+        timeout = _cli_timeout()
+        with tempfile.TemporaryDirectory(prefix="mll_claude_") as tmp:
+            sys_file = os.path.join(tmp, "system.txt")
+            with open(sys_file, "w", encoding="utf-8") as fh:
+                fh.write(system_prompt)
+            cmd = [
+                binary, "-p",
+                "--output-format", "json",
+                "--json-schema", json.dumps(schema, ensure_ascii=False),
+                "--append-system-prompt-file", sys_file,
+                "--allowed-tools", "",
+                "--permission-mode", "dontAsk",
+                "--model", model_id,
+            ]
+            # cwd=tmp → 프로젝트 CLAUDE.md/hooks 로드 회피. 구독 인증 위해 --bare 미사용.
+            rc, out, err = await _run_cli(cmd, stdin_text=user_prompt, cwd=tmp, timeout=timeout)
+        if rc != 0:
+            raise RuntimeError(f"claude -p 실패 (exit {rc}): {err.strip()[:500]}")
+        try:
+            data = json.loads(out)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"claude -p JSON 봉투 파싱 실패: {out[:300]}") from exc
+        if data.get("is_error"):
+            raise RuntimeError(f"claude -p error: {str(data.get('result', ''))[:300]}")
+        structured = data.get("structured_output")
+        if structured is not None:
+            response_text = json.dumps(structured, ensure_ascii=False)
+        else:
+            response_text = data.get("result", "") or ""
+        request = {
+            "backend": "claude-cli",
+            "model": model_id,
+            "argv": cmd,
+            "system_prompt_chars": len(system_prompt),
+            "user_prompt_chars": len(user_prompt),
+        }
+        meta = {
+            "backend": "claude-cli",
+            "model": model_id,
+            "usage": data.get("modelUsage") or data.get("usage"),
+            "session_id": data.get("session_id"),
+        }
+        return ProviderResponse(
+            provider=self.name,
+            model=model_id,
+            request=to_jsonable(request),
+            response_text=response_text,
+            response_meta=meta,
+        )
 
 
-class OpenAIAdapter:
+# =============================================================================
+# Codex CLI  (openai)  — codex exec --output-schema (네이티브 구조화), reasoning xhigh
+# =============================================================================
+
+class CodexAdapter:
     name = "openai"
 
     async def generate_structured(
@@ -83,127 +207,63 @@ class OpenAIAdapter:
         schema_name: str,
         output_model: Any | None,
     ) -> ProviderResponse:
-        if not api_key:
-            raise RuntimeError("Missing OPENAI_API_KEY")
-
-        try:
-            from openai import AsyncOpenAI
-        except ImportError as exc:
-            raise RuntimeError("openai package required. pip install openai") from exc
-
-        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=temperature,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": schema_name,
-                    "schema": schema,
-                    "strict": True,
-                },
-            },
-        )
-
-        response_text = response.choices[0].message.content or ""
+        binary = shutil.which("codex") or "codex"
+        model_id = os.getenv("MULTILLM_CODEX_MODEL") or model
+        effort = _reasoning_effort()
+        timeout = _cli_timeout()
+        with tempfile.TemporaryDirectory(prefix="mll_codex_") as tmp:
+            schema_file = os.path.join(tmp, "schema.json")
+            out_file = os.path.join(tmp, "out.json")
+            with open(schema_file, "w", encoding="utf-8") as fh:
+                json.dump(schema, fh, ensure_ascii=False)
+            cmd = [
+                binary, "exec",
+                system_prompt,                      # 역할 지시문 = prompt arg
+                "--output-schema", schema_file,
+                "-o", out_file,
+                "-m", model_id,
+                "-c", f"model_reasoning_effort={effort}",
+                "-s", "read-only",
+                "--skip-git-repo-check",
+                "--ephemeral",
+            ]
+            # 장문 컨텍스트(user_prompt) → stdin (codex 가 <stdin> 블록으로 append)
+            rc, out, err = await _run_cli(cmd, stdin_text=user_prompt, cwd=tmp, timeout=timeout)
+            response_text = ""
+            try:
+                with open(out_file, "r", encoding="utf-8") as fh:
+                    response_text = fh.read().strip()
+            except FileNotFoundError:
+                response_text = ""
+        if not response_text:
+            if rc != 0:
+                raise RuntimeError(f"codex exec 실패 (exit {rc}): {err.strip()[:500]}")
+            raise RuntimeError(f"codex exec 구조화 출력 없음: {err.strip()[:300]}")
         request = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "temperature": temperature,
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": schema_name,
-                    "schema": schema,
-                    "strict": True,
-                },
-            },
+            "backend": "codex-cli",
+            "model": model_id,
+            "reasoning_effort": effort,
+            "argv": cmd,
+            "system_prompt_chars": len(system_prompt),
+            "user_prompt_chars": len(user_prompt),
         }
+        meta = {"backend": "codex-cli", "model": model_id, "reasoning_effort": effort}
         return ProviderResponse(
             provider=self.name,
-            model=model,
+            model=model_id,
             request=to_jsonable(request),
             response_text=response_text,
-            response_meta=extract_response_meta(response),
+            response_meta=meta,
         )
 
 
-class AnthropicAdapter:
-    name = "anthropic"
+# =============================================================================
+# Antigravity CLI  (gemini)  — Gemini CLI 후속. 기본 모델 Gemini 3.5 Flash (High).
+#   agy 0.42.0 는 --output-format/--model/reasoning 플래그 미지원 → 평문 출력을
+#   JSON-only 지시로 유도하고 executor 의 Pydantic 검증 경로로 파싱한다.
+# =============================================================================
 
-    async def generate_structured(
-        self,
-        *,
-        model: str,
-        api_key: str | None,
-        base_url: str | None,
-        system_prompt: str,
-        user_prompt: str,
-        temperature: float,
-        schema: dict[str, Any],
-        schema_name: str,
-        output_model: Any | None,
-    ) -> ProviderResponse:
-        if not api_key:
-            raise RuntimeError("Missing ANTHROPIC_API_KEY")
-        if output_model is None:
-            raise RuntimeError("Anthropic structured output requires output_model")
-
-        try:
-            from anthropic import AsyncAnthropic
-        except ImportError as exc:
-            raise RuntimeError("anthropic package required. pip install anthropic") from exc
-
-        client = AsyncAnthropic(api_key=api_key)
-        raw_request: dict[str, Any] = {
-            "model": model,
-            "system": system_prompt,
-            "messages": [{"role": "user", "content": user_prompt}],
-            "temperature": temperature,
-        }
-
-        response, used_max_tokens = await create_message_with_auto_max_tokens(
-            client.beta.messages.parse,
-            model=model,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
-            temperature=temperature,
-            output_format=output_model,
-            stream=False,
-        )
-        raw_request = {
-            **raw_request,
-            "max_tokens": used_max_tokens,
-            "output_format": getattr(output_model, "__name__", "OutputModel"),
-            "structured_output": True,
-            "stream": False,
-        }
-
-        response_text = ""
-        for block in response.content:
-            text = getattr(block, "text", None)
-            if text:
-                response_text += text
-
-        parsed_output = getattr(response, "parsed_output", None)
-        return ProviderResponse(
-            provider=self.name,
-            model=model,
-            request=to_jsonable(raw_request),
-            response_text=response_text,
-            response_meta=extract_response_meta(response),
-            parsed_output=parsed_output,
-        )
-
-
-class GeminiAdapter:
+class AntigravityCliAdapter:
     name = "gemini"
 
     async def generate_structured(
@@ -219,38 +279,51 @@ class GeminiAdapter:
         schema_name: str,
         output_model: Any | None,
     ) -> ProviderResponse:
-        if not api_key:
-            raise RuntimeError("Missing GEMINI_API_KEY")
-
+        binary = shutil.which("agy") or "agy"
+        timeout = _cli_timeout()
+        directive = (
+            f"{system_prompt}\n\n"
+            "[중요] 아래 stdin 본문을 토대로, 코드펜스나 부가 설명 없이 "
+            "다음 JSON 스키마에 정확히 부합하는 JSON 객체 하나만 출력하세요:\n"
+            f"{json.dumps(schema, ensure_ascii=False)}"
+        )
+        cmd = [
+            binary, "-p", directive,
+            "--dangerously-skip-permissions",
+            "--print-timeout", _agy_print_timeout(),
+        ]
+        # agy 는 cwd 에 .antigravitycli/ 作業ディレクトリを生成するため tempdir で隔離する。
+        tmp = tempfile.mkdtemp(prefix="mll_agy_")
+        last_err = ""
         try:
-            from google import genai
-        except ImportError as exc:
-            raise RuntimeError("google-genai package required. pip install google-genai") from exc
+            for attempt in range(2):
+                rc, out, err = await _run_cli(cmd, stdin_text=user_prompt, cwd=tmp, timeout=timeout)
+                text = _strip_code_fences(out.strip())
+                if rc == 0 and text:
+                    request = {
+                        "backend": "antigravity-cli",
+                        "model": model,
+                        "directive_chars": len(directive),
+                        "user_prompt_chars": len(user_prompt),
+                        "attempt": attempt + 1,
+                    }
+                    meta = {"backend": "antigravity-cli", "model": model, "attempt": attempt + 1}
+                    return ProviderResponse(
+                        provider=self.name,
+                        model=model,
+                        request=to_jsonable(request),
+                        response_text=text,
+                        response_meta=meta,
+                    )
+                last_err = err.strip()[:300] or f"exit {rc}"
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        raise RuntimeError(f"agy -p 실패: {last_err}")
 
-        client = genai.Client(api_key=api_key)
-        config = {
-            "temperature": temperature,
-            "response_mime_type": "application/json",
-            "response_json_schema": schema,
-        }
-        full_prompt = f"{system_prompt}\n\n{user_prompt}"
 
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model=model,
-            contents=full_prompt,
-            config=config,
-        )
-        response_text = _extract_gemini_text(response)
-        request = {"model": model, "contents": full_prompt, "config": config}
-        return ProviderResponse(
-            provider=self.name,
-            model=model,
-            request=to_jsonable(request),
-            response_text=response_text,
-            response_meta=extract_response_meta(response),
-        )
-
+# =============================================================================
+# Mock  (offline smoke tests)
+# =============================================================================
 
 class MockAdapter:
     name = "mock"
@@ -323,9 +396,9 @@ def get_adapter(provider: str) -> ProviderAdapter:
     if normalized == "mock":
         return MockAdapter()
     if normalized == "openai":
-        return OpenAIAdapter()
+        return CodexAdapter()
     if normalized in {"anthropic", "claude"}:
-        return AnthropicAdapter()
+        return ClaudeCliAdapter()
     if normalized == "gemini":
-        return GeminiAdapter()
+        return AntigravityCliAdapter()
     raise ValueError(f"Unknown provider: {provider}")

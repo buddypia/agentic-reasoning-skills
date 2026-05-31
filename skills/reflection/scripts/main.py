@@ -19,9 +19,9 @@
 
     # カスタムモデル指定
     python main.py "Your prompt" \\
-        --generator-model gemini-3-pro-preview \\
-        --critic-model claude-opus-4-1-20250805 \\
-        --refiner-model gpt-5.2
+        --generator-model gemini-3.5-flash \\
+        --critic-model claude-opus-4-8 \\
+        --refiner-model gpt-5.5
 
 設定の優先順位:
     CLI引数 > 環境変数 > 設定ファイル > デフォルト値
@@ -279,7 +279,7 @@ def _resolve_agent_config(
         or os.getenv(env_keys.model)
         or (os.getenv(provider_model_env) if provider_model_env else None)
         or agent_cfg.get("model")
-        or DEFAULT_MODELS.get(provider, "gpt-5.2")
+        or DEFAULT_MODELS.get(provider, "gpt-5.5")
     )
 
     cli_api_key = None
@@ -345,24 +345,8 @@ def _resolve_devui_port(args: argparse.Namespace, config_file: dict[str, Any]) -
 
 
 def _require_api_key(config: AgentConfig) -> None:
-    provider = _normalize_provider(config.provider)
-    if provider == "mock":
-        return
-    if config.api_key:
-        return
-    provider_env, _ = _resolve_provider_env_keys(config.provider)
-    cli_flag = {
-        "gemini": "--gemini-api-key",
-        "anthropic": "--anthropic-api-key",
-        "claude": "--anthropic-api-key",
-        "openai": "--openai-api-key",
-    }.get(provider, None)
-    print(f"エラー: {config.name} のAPIキーが見つかりません（provider={provider}）。", file=sys.stderr)
-    if provider_env:
-        print(f"  環境変数: {config.role.upper()}固有（例: REFLECTION_{config.role.upper()}_API_KEY） または {provider_env}", file=sys.stderr)
-    if cli_flag:
-        print(f"  CLI: {cli_flag}", file=sys.stderr)
-    sys.exit(1)
+    """순수 CLI 백엔드(구독 인증) — API 키 검증 불필요."""
+    return
 
 
 @dataclass(frozen=True)

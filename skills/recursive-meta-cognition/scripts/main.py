@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-マルチLLM メタ認知パターン ワークフロー（5段階）
+マルチLLM リフレクションパターン ワークフロー（5段階）
 
-複数のLLMを使用したメタ認知（分解→解決→検証→統合→反省）:
+複数のLLMを使用したリフレクション（分解→解決→検証→統合→反省）:
 - Decomposer: 課題の分解
 - Solver: 解決案の作成
 - Verifier: 検証と自己修正
@@ -21,11 +21,11 @@
 
     # カスタムモデル指定
     python main.py "Your prompt" \
-        --decomposer-model gemini-3-pro-preview \
-        --solver-model gemini-3-pro-preview \
-        --verifier-model claude-opus-4-1-20250805 \
-        --integrator-model gpt-5.2 \
-        --reflector-model gpt-5.2
+        --decomposer-model gemini-3.5-flash \
+        --solver-model gemini-3.5-flash \
+        --verifier-model claude-opus-4-8 \
+        --integrator-model gpt-5.5 \
+        --reflector-model gpt-5.5
 
 設定の優先順位:
     CLI引数 > 環境変数 > 設定ファイル > デフォルト値
@@ -83,8 +83,8 @@ from workflow.settings import (
     REFLECTOR_ENV_KEYS,
     print_config_info,
 )
-from workflow.workflow import build_metacognition_workflow
-from workflow.types import MetaCognitionResult
+from workflow.workflow import build_reflection_workflow
+from workflow.types import ReflectionResult
 
 
 DEFAULT_DEVUI_PORT = 8095
@@ -213,7 +213,7 @@ def _resolve_output_schema(
     if getattr(args, "output_schema", None):
         return _normalize_output_schema(str(args.output_schema))
 
-    env_schema = os.getenv("METACOGNITION_OUTPUT_SCHEMA") or os.getenv("METACOGNITION_OUTPUT_FORMAT")
+    env_schema = os.getenv("REFLECTION_OUTPUT_SCHEMA") or os.getenv("REFLECTION_OUTPUT_FORMAT")
     if env_schema:
         return _normalize_output_schema(env_schema)
 
@@ -234,15 +234,15 @@ def _resolve_provider_strategy(
     if getattr(args, "shuffle_providers", False):
         return "shuffle"
 
-    env_strategy = os.getenv("METACOGNITION_PROVIDER_STRATEGY") or os.getenv("METACOGNITION_PROVIDER_MODE")
+    env_strategy = os.getenv("REFLECTION_PROVIDER_STRATEGY") or os.getenv("REFLECTION_PROVIDER_MODE")
     if env_strategy:
         normalized = env_strategy.strip().lower()
         if normalized in {"random", "shuffle", "fixed"}:
             return normalized
 
-    if _is_truthy(os.getenv("METACOGNITION_RANDOM_PROVIDERS")):
+    if _is_truthy(os.getenv("REFLECTION_RANDOM_PROVIDERS")):
         return "random"
-    if _is_truthy(os.getenv("METACOGNITION_SHUFFLE_PROVIDERS")):
+    if _is_truthy(os.getenv("REFLECTION_SHUFFLE_PROVIDERS")):
         return "shuffle"
 
     global_cfg = _get_global_config(config_file)
@@ -341,7 +341,7 @@ def _resolve_agent_config(
         or os.getenv(env_keys.model)
         or (os.getenv(provider_model_env) if provider_model_env else None)
         or agent_cfg.get("model")
-        or DEFAULT_MODELS.get(provider, "gpt-5.2")
+        or DEFAULT_MODELS.get(provider, "gpt-5.5")
     )
 
     cli_api_key = None
@@ -374,7 +374,7 @@ def _resolve_agent_config(
     temperature = _resolve_temperature(
         args=args,
         env_key_role=env_keys.temperature,
-        env_prefix="METACOGNITION",
+        env_prefix="REFLECTION",
         agent_cfg=agent_cfg,
         global_cfg=global_cfg,
         default=default_temperature,
@@ -382,7 +382,7 @@ def _resolve_agent_config(
     timeout_sec = _resolve_timeout(
         args=args,
         env_key_role=env_keys.timeout,
-        env_prefix="METACOGNITION",
+        env_prefix="REFLECTION",
         agent_cfg=agent_cfg,
         global_cfg=global_cfg,
         default=default_timeout_sec,
@@ -404,7 +404,7 @@ def _resolve_devui_port(args: argparse.Namespace, config_file: dict[str, Any]) -
     if getattr(args, "port", None) is not None:
         return int(args.port)
 
-    env_port = os.getenv("METACOGNITION_DEVUI_PORT") or os.getenv("DEVUI_PORT")
+    env_port = os.getenv("REFLECTION_DEVUI_PORT") or os.getenv("DEVUI_PORT")
     if env_port is not None:
         return _coerce_int(env_port, DEFAULT_DEVUI_PORT)
 
@@ -416,27 +416,8 @@ def _resolve_devui_port(args: argparse.Namespace, config_file: dict[str, Any]) -
 
 
 def _require_api_key(config: AgentConfig) -> None:
-    provider = _normalize_provider(config.provider)
-    if provider == "mock":
-        return
-    if config.api_key:
-        return
-    provider_env, _ = _resolve_provider_env_keys(config.provider)
-    cli_flag = {
-        "gemini": "--gemini-api-key",
-        "anthropic": "--anthropic-api-key",
-        "claude": "--anthropic-api-key",
-        "openai": "--openai-api-key",
-    }.get(provider, None)
-    print(f"エラー: {config.name} のAPIキーが見つかりません（provider={provider}）。", file=sys.stderr)
-    if provider_env:
-        print(
-            f"  環境変数: {config.role.upper()}固有（例: METACOGNITION_{config.role.upper()}_API_KEY） または {provider_env}",
-            file=sys.stderr,
-        )
-    if cli_flag:
-        print(f"  CLI: {cli_flag}", file=sys.stderr)
-    sys.exit(1)
+    """순수 CLI 백엔드(구독 인증) — API 키 검증 불필요."""
+    return
 
 
 @dataclass(frozen=True)
@@ -453,7 +434,7 @@ class RuntimeConfig:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="メタ認知パターン マルチLLM ワークフロー（5段階）",
+        description="リフレクションパターン マルチLLM ワークフロー（5段階）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 使用例:
@@ -477,7 +458,7 @@ def parse_args() -> argparse.Namespace:
         "prompt",
         nargs="?",
         default=None,
-        help="メタ認知ワークフローで処理するプロンプト",
+        help="リフレクションワークフローで処理するプロンプト",
     )
 
     # 設定ファイルオプション
@@ -803,14 +784,14 @@ def _truncate_strings(value: object, max_chars: int) -> object:
 
 
 def print_result(
-    result: MetaCognitionResult,
+    result: ReflectionResult,
     verbose: bool = False,
     as_json: bool = False,
     include_raw: bool = False,
     raw_max_chars: int = 8000,
     output_schema: str = "nested",
 ) -> None:
-    """メタ認知結果を読みやすい形式で出力する。"""
+    """リフレクション結果を読みやすい形式で出力する。"""
 
     if as_json:
         if output_schema == "flat":
@@ -859,7 +840,7 @@ def print_result(
         return
 
     print("\n" + "=" * 70)
-    print("メタ認知 ワークフロー 結果（5段階）")
+    print("リフレクション ワークフロー 結果（5段階）")
     print("=" * 70)
 
     print("\n--- 元のプロンプト ---")
@@ -946,10 +927,10 @@ def print_result(
         print(json.dumps(raw_data_view, ensure_ascii=False, indent=2))
 
 
-def _extract_metacognition_result(run_result: object) -> MetaCognitionResult | None:
-    """workflow.run()の戻り値からMetaCognitionResultを抽出する。"""
+def _extract_reflection_result(run_result: object) -> ReflectionResult | None:
+    """workflow.run()の戻り値からReflectionResultを抽出する。"""
 
-    if isinstance(run_result, MetaCognitionResult):
+    if isinstance(run_result, ReflectionResult):
         return run_result
 
     outputs: list[object] = []
@@ -963,10 +944,10 @@ def _extract_metacognition_result(run_result: object) -> MetaCognitionResult | N
                 outputs.append(data)
 
     for candidate in reversed(outputs):
-        if isinstance(candidate, MetaCognitionResult):
+        if isinstance(candidate, ReflectionResult):
             return candidate
         try:
-            return MetaCognitionResult.model_validate(candidate)
+            return ReflectionResult.model_validate(candidate)
         except Exception:
             continue
 
@@ -995,7 +976,7 @@ async def run_cli(args: argparse.Namespace, runtime: RuntimeConfig) -> None:
 
     log_stream = sys.stderr if args.json else sys.stdout
     if args.verbose:
-        print("\nメタ認知ワークフローを開始しています...", file=log_stream)
+        print("\nリフレクションワークフローを開始しています...", file=log_stream)
         print(f"  Decomposer: {decomposer_config.provider}/{decomposer_config.model}", file=log_stream)
         print(f"  Solver: {solver_config.provider}/{solver_config.model}", file=log_stream)
         print(f"  Verifier: {verifier_config.provider}/{verifier_config.model}", file=log_stream)
@@ -1003,7 +984,7 @@ async def run_cli(args: argparse.Namespace, runtime: RuntimeConfig) -> None:
         print(f"  Reflector: {reflector_config.provider}/{reflector_config.model}", file=log_stream)
         print(file=log_stream)
 
-    workflow = build_metacognition_workflow(
+    workflow = build_reflection_workflow(
         decomposer_config=decomposer_config,
         solver_config=solver_config,
         verifier_config=verifier_config,
@@ -1012,10 +993,10 @@ async def run_cli(args: argparse.Namespace, runtime: RuntimeConfig) -> None:
     )
 
     run_result = await workflow.run(args.prompt)
-    reflection_result = _extract_metacognition_result(run_result)
+    reflection_result = _extract_reflection_result(run_result)
 
     if reflection_result is None:
-        print(f"エラー: MetaCognitionResultを抽出できませんでした: {type(run_result)}", file=sys.stderr)
+        print(f"エラー: ReflectionResultを抽出できませんでした: {type(run_result)}", file=sys.stderr)
         print(run_result)
         sys.exit(1)
 

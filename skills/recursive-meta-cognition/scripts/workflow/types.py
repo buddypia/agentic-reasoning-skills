@@ -1,4 +1,4 @@
-"""メタ認知パターン 型定義（5段階: 分解→解決→検証→統合→反省）。"""
+"""リフレクションパターン 型定義（5段階: 分解→解決→検証→統合→反省）。"""
 
 from typing import Any, Optional, List
 
@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class PromptPayload(BaseModel):
-    """メタ認知ワークフローの初期ユーザープロンプト。"""
+    """リフレクションワークフローの初期ユーザープロンプト。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -101,8 +101,8 @@ class StageRawData(BaseModel):
     error: Optional[str] = Field(default=None, description="エラーメッセージ（ある場合）")
 
 
-class MetaCognitionRawData(BaseModel):
-    """メタ認知ワークフロー全体の生データ（5段階）。"""
+class ReflectionRawData(BaseModel):
+    """リフレクションワークフロー全体の生データ（5段階）。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -113,8 +113,8 @@ class MetaCognitionRawData(BaseModel):
     reflector: Optional[StageRawData] = None
 
 
-class MetaCognitionResult(BaseModel):
-    """完全なメタ認知ワークフロー結果。"""
+class ReflectionResult(BaseModel):
+    """完全なリフレクションワークフロー結果。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -135,7 +135,7 @@ class MetaCognitionResult(BaseModel):
     reflector_model: str = Field("")
 
     # 生トレース（オプション）
-    raw: Optional[MetaCognitionRawData] = Field(
+    raw: Optional[ReflectionRawData] = Field(
         default=None,
         description="各LLMステージのサニタイズされた生リクエスト/レスポンスデータ（デバッグ用）",
     )
@@ -262,7 +262,7 @@ INTEGRATION_JSON_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-REFLECTOR_JSON_SCHEMA: dict[str, Any] = {
+REFLECTION_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "final_response": {

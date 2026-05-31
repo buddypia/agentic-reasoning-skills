@@ -1,4 +1,4 @@
-"""メタ認知パターン ワークフロー - 逐次実行: 分解→解決→検証→統合→反省。"""
+"""リフレクションパターン ワークフロー - 逐次実行: 分解→解決→検証→統合→反省。"""
 
 from .engine import WorkflowBuilder, Executor, WorkflowContext, handler
 
@@ -12,7 +12,7 @@ from .reflector import ReflectorExecutor
 
 
 class PromptIngress(Executor):
-    """ユーザープロンプトを受け取り、メタ認知フローを開始するエントリーポイント。"""
+    """ユーザープロンプトを受け取り、リフレクションフローを開始するエントリーポイント。"""
 
     def __init__(self):
         super().__init__(id="prompt_ingress")
@@ -23,16 +23,16 @@ class PromptIngress(Executor):
         await ctx.send_message(payload)
 
 
-def build_metacognition_workflow(
+def build_reflection_workflow(
     decomposer_config: AgentConfig,
     solver_config: AgentConfig,
     verifier_config: AgentConfig,
     integrator_config: AgentConfig,
     reflector_config: AgentConfig,
-    name: str = "multi_llm_metacognition",
+    name: str = "multi_llm_reflection",
 ):
     """
-    メタ認知パターンワークフローを構築する。
+    リフレクションパターンワークフローを構築する。
 
     フロー:
         [ユーザープロンプト]
@@ -53,7 +53,7 @@ def build_metacognition_workflow(
         [Reflector] - 反省と確信度を付与し最終回答
               |
               v
-        [MetaCognitionResult]
+        [ReflectionResult]
     """
     builder = WorkflowBuilder(name=name)
 

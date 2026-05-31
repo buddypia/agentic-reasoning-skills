@@ -1,5 +1,5 @@
-# メタ認知パターン マルチLLM ワークフロー（5段階）
-from .workflow import build_metacognition_workflow
+# リフレクションパターン マルチLLM ワークフロー（5段階）
+from .workflow import build_reflection_workflow
 from .config import AgentConfig
 from .settings import (
     create_default_configs,
@@ -18,7 +18,7 @@ from .settings import (
 )
 
 __all__ = [
-    "build_metacognition_workflow",
+    "build_reflection_workflow",
     "AgentConfig",
     "create_default_configs",
     "create_agent_config_from_env",

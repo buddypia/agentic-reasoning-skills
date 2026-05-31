@@ -22,13 +22,13 @@ from .config import AgentConfig
 # =============================================================================
 
 DEFAULT_MODELS: dict[str, str] = {
-    # Google Gemini: Most intelligent (as of 2026-01)
-    "gemini": "gemini-3-pro-preview",
-    # Anthropic Claude: Most capable (as of 2026-01)
-    "anthropic": "claude-opus-4-1-20250805",
-    "claude": "claude-opus-4-1-20250805",
-    # OpenAI: Latest flagship (as of 2026-01)
-    "openai": "gpt-5.2",
+    # Google Gemini: Antigravity CLI 기본 (Gemini 3.5 Flash, 2026-05)
+    "gemini": "gemini-3.5-flash",
+    # Anthropic Claude: Claude Code CLI 최신 (2026-05)
+    "anthropic": "claude-opus-4-8",
+    "claude": "claude-opus-4-8",
+    # OpenAI: Codex CLI 최신 flagship (2026-04)
+    "openai": "gpt-5.5",
     # Mock provider (offline smoke tests)
     "mock": "mock-v1",
 }
@@ -77,7 +77,7 @@ class DefaultAgentSettings:
         if self.model:
             return self.model
         normalized = self.provider.strip().lower()
-        return DEFAULT_MODELS.get(normalized, "gpt-5.2")
+        return DEFAULT_MODELS.get(normalized, "gpt-5.5")
 
 
 # Default configurations for each agent role
@@ -247,7 +247,7 @@ def create_agent_config_from_env(
             model = agent_config["model"]
         else:
             # Use provider default
-            model = DEFAULT_MODELS.get(provider.strip().lower(), "gpt-5.2")
+            model = DEFAULT_MODELS.get(provider.strip().lower(), "gpt-5.5")
 
     # Resolve API key
     api_key = resolve_api_key_for_provider(provider, env_keys.api_key)
@@ -377,7 +377,7 @@ def print_config_info() -> None:
     DEBATE_DEVUI_PORT        : DevUIポート (または DEVUI_PORT)
 
 デフォルト値:
-    Proponent: gemini / gemini-3-pro-preview
-    Opponent:  anthropic / claude-opus-4-1-20250805
-    Moderator: openai / gpt-5.2
+    Proponent: gemini / gemini-3.5-flash
+    Opponent:  anthropic / claude-opus-4-8
+    Moderator: openai / gpt-5.5
 """)

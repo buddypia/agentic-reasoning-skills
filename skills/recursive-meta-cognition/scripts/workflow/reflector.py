@@ -17,10 +17,10 @@ from .types import (
     IntegrationOutput,
     VerificationOutput,
     ReflectionOutput,
-    MetaCognitionRawData,
-    MetaCognitionResult,
+    ReflectionRawData,
+    ReflectionResult,
     StageRawData,
-    REFLECTOR_JSON_SCHEMA,
+    REFLECTION_JSON_SCHEMA,
 )
 
 
@@ -63,7 +63,7 @@ def _apply_property_ordering(schema: dict[str, Any]) -> None:
 
 
 def _build_gemini_schema(model_id: str | None) -> dict[str, Any]:
-    schema = deepcopy(REFLECTOR_JSON_SCHEMA)
+    schema = deepcopy(REFLECTION_JSON_SCHEMA)
     if _gemini_requires_property_ordering(model_id):
         _apply_property_ordering(schema)
     return schema
@@ -77,7 +77,7 @@ class ReflectorExecutor(Executor):
         self.config = config
 
     @handler
-    async def reflect(self, integration: IntegrationOutput, ctx: WorkflowContext[MetaCognitionResult]) -> None:
+    async def reflect(self, integration: IntegrationOutput, ctx: WorkflowContext[ReflectionResult]) -> None:
         started = time.perf_counter()
 
         await ctx.set_shared_state("reflector_model", self.config.model)
@@ -155,14 +155,14 @@ class ReflectorExecutor(Executor):
             raw.duration_sec = duration
             await ctx.set_shared_state("reflector_raw", raw.model_dump())
 
-        workflow_raw: MetaCognitionRawData | None = None
+        workflow_raw: ReflectionRawData | None = None
         try:
             decomposer_raw_obj = await ctx.get_shared_state("decomposer_raw")
             solver_raw_obj = await ctx.get_shared_state("solver_raw")
             verifier_raw_obj = await ctx.get_shared_state("verifier_raw")
             integrator_raw_obj = await ctx.get_shared_state("integrator_raw")
 
-            workflow_raw = MetaCognitionRawData(
+            workflow_raw = ReflectionRawData(
                 decomposer=StageRawData.model_validate(decomposer_raw_obj) if decomposer_raw_obj else None,
                 solver=StageRawData.model_validate(solver_raw_obj) if solver_raw_obj else None,
                 verifier=StageRawData.model_validate(verifier_raw_obj) if verifier_raw_obj else None,
@@ -180,7 +180,7 @@ class ReflectorExecutor(Executor):
         except Exception:
             workflow_raw = None
 
-        final_result = MetaCognitionResult(
+        final_result = ReflectionResult(
             original_prompt=original_prompt,
             decomposition=DecompositionOutput.model_validate(decomposition_output),
             solution=SolutionOutput.model_validate(solution_output),
@@ -222,7 +222,7 @@ class ReflectorExecutor(Executor):
             "上記を踏まえて最終回答を作成してください。"
         )
 
-        schema = REFLECTOR_JSON_SCHEMA
+        schema = REFLECTION_JSON_SCHEMA
         if provider == "gemini":
             schema = _build_gemini_schema(self.config.model)
 

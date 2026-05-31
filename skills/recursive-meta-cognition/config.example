@@ -1,13 +1,13 @@
 # ===========================================
-# Multi-LLM Meta-Cognition Configuration (5段階)
-# メタ認知パターン マルチエージェント設定
+# Multi-LLM Reflection Configuration (5段階)
+# リフレクションパターン マルチエージェント設定
 # ===========================================
 #
 # このファイルを config.yaml にコピーして設定をカスタマイズしてください
 #
 # 設定の優先順位 (高い順):
 #   1. CLI引数 (--decomposer-model, --verifier-provider, etc.)
-#   2. 環境変数 (METACOGNITION_<ROLE>_<KEY>, <PROVIDER>_API_KEY)
+#   2. 環境変数 (REFLECTION_<ROLE>_<KEY>, <PROVIDER>_API_KEY)
 #   3. 設定ファイル (このファイル)
 #   4. デフォルト値
 #
@@ -93,7 +93,7 @@ global:
 #
 # 2. モデルの変更:
 #    - このファイルの model フィールドを変更
-#    - または環境変数: METACOGNITION_DECOMPOSER_MODEL=gemini-3-pro-preview
+#    - または環境変数: REFLECTION_DECOMPOSER_MODEL=gemini-3-pro-preview
 #    - または CLI: --decomposer-model gemini-3-pro-preview
 #
 # 3. プロバイダーの変更:

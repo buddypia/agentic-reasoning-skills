@@ -1,4 +1,4 @@
-"""メタ認知パターン エージェント設定。"""
+"""リフレクションパターン エージェント設定。"""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ from typing import Optional
 
 @dataclass
 class AgentConfig:
-    """メタ認知パターンエージェントの設定。"""
+    """リフレクションパターンエージェントの設定。"""
 
     name: str
-    role: str  # "decomposer", "solver", "verifier", "integrator", "reflector"
+    role: str  # "generator", "critic", "refiner"
     provider: str  # "openai", "anthropic", "gemini"
     model: str
     api_key: Optional[str]

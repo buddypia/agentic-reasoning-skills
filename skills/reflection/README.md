@@ -1,57 +1,155 @@
-# 🪞 Reflection Pattern
+# Multi-LLM Reflection（マルチLLMリフレクション）
 
-**Generator → Critic → Refiner** — A 3-stage iterative content improvement pipeline.
+> ⚠️ **2026-05 更新**: バックエンドを**購読認証CLI**（Antigravity `agy` / Claude Code `claude` / Codex `codex`）に移行しました。**APIキーは不要**です（各CLIの購読認証を利用）。以下のAPIキー設定は旧バージョンの記述です。最新の利用方法は `SKILL.md` を参照してください。
+
+
+3つの独立したAIエージェント（Generator → Critic → Refiner）が順次処理を行い、段階的にコンテンツの品質を向上させるワークフロー。
+
+## 概要
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│  Generator   │────▶│    Critic     │────▶│   Refiner    │
-│  (Gemini)    │     │   (Claude)    │     │  (OpenAI)    │
-│              │     │              │     │              │
-│ Draft content│     │ Analyze &    │     │ Apply fixes  │
-│ creatively   │     │ find issues  │     │ & polish     │
-└──────────────┘     └──────────────┘     └──────────────┘
+[ユーザープロンプト]
+       |
+       v
+┌─────────────────┐
+│ Generator       │  初期ドラフトの作成
+└────────┬────────┘
+         |
+         v
+┌─────────────────┐
+│ Critic          │  批評・改善提案（独立コンテキスト）
+└────────┬────────┘
+         |
+         v
+┌─────────────────┐
+│ Refiner         │  フィードバックを統合し最終版を作成
+└────────┬────────┘
+         |
+         v
+[最終結果]
 ```
 
-## Quick Start
+各エージェントは独立したコンテキストで実行される。Critic は Generator の思考過程を知らないため、純粋にドラフトの品質だけを評価する。
+
+## 使い方
+
+### Claude Code から実行（推奨）
+
+APIキー不要。Claude Code の Task tool を使って、独立したサブエージェントで3段階リフレクションを実行する。
+
+```
+/multi-llm-reflection AIの最新トレンドについて要約してください
+```
+
+```
+/multi-llm-reflection Kubernetesの初心者向け入門記事を書いて
+
+[コンテキスト]
+- 対象読者: Dockerは使えるがK8s初心者
+- 文字数: 3000〜5000文字
+- 環境: minikubeを想定
+```
+
+### 入力のコツ
+
+プロンプトだけでなく、**コンテキスト情報** も一緒に入力するとより質の高い出力が得られる。
+
+```
+[タスク/質問]
+作成したい内容や質問
+
+[コンテキスト]
+- 背景情報、制約条件、前提条件
+- 対象読者やユースケース
+- 期待する出力形式や優先事項
+```
+
+## 出力例
+
+```
+======================================================================
+リフレクション ワークフロー 結果
+======================================================================
+
+--- 元のプロンプト ---
+AI技術トレンドを要約してください
+
+--- ステージ1: 初期ドラフト (Generator) ---
+キーポイント:
+  - 主要トレンドの概要
+  - 技術的な進展
+信頼度: 0.85
+
+--- ステージ2: 批評 (Critic) ---
+スコア: 7/10
+
+強み:
+  + 主要なトレンドを網羅している
+  + 構造が明確
+
+弱み:
+  - 具体例が不足
+  - 最新の動向が反映されていない
+
+改善提案:
+  > 各トレンドに具体的な事例を追加
+  > 2026年の最新動向を補足
+
+--- ステージ3: 改善版 (Refiner) ---
+品質スコア: 9/10
+
+実施した改善:
+  * 具体的な事例を追加
+  * 最新動向を反映
+
+### 最終コンテンツ ###
+
+[改善された最終版コンテンツ]
+
+======================================================================
+```
+
+## 用途
+
+### 適したユースケース
+
+| ユースケース | 説明 | 具体例 |
+|-------------|------|------|
+| **高品質なコンテンツ** | 完璧な出力が必要な場合 | 技術ブログ記事、ホワイトペーパー |
+| **客観的なレビュー** | 独立した批評が必要な場合 | 提案書のレビュー、設計ドキュメント評価 |
+| **段階的な改善** | 初稿→批評→改善のプロセスを再現 | エッセイ、マーケティングコピー |
+| **多角的な視点** | 構造化されたフィードバックが必要な場合 | 意思決定の根拠、リスク分析レポート |
+
+### 不向きなユースケース
+
+| ユースケース | 理由 | 代替案 |
+|-------------|------|------|
+| シンプルな質問応答 | 3段階処理はオーバーヘッドが大きい | 直接質問 |
+| リアルタイム性が必要 | 3つのエージェント呼び出しで遅延が発生 | 単一リクエスト |
+| コード生成 | 文章生成に最適化されている | コーディングエージェント |
+
+## 設計思想
+
+### なぜ独立したサブエージェントを使うのか？
+
+1. **コンテキスト分離**: Critic は Generator の思考過程にアクセスできないため、ドラフトの内容だけを純粋に評価する。同一コンテキストでは自分の出力に対するバイアスが生じやすい。
+
+2. **構造化されたプロセス**: 人間のワークフロー（ドラフト作成 → レビュー → 修正）をAIで再現。各ステージに明確な役割と出力形式がある。
+
+3. **品質の段階的向上**: 各ステージで品質スコアを付与し、改善の過程を可視化する。
+
+## レガシー: Python スクリプト版
+
+`scripts/` ディレクトリに、外部APIキーを使用する Python スクリプト版が残されている。異なるLLMプロバイダー（Gemini, Claude, OpenAI）を組み合わせたい場合に使用できる。
 
 ```bash
-# Set API keys
-export GEMINI_API_KEY="your-key"
-export ANTHROPIC_API_KEY="your-key"
-export OPENAI_API_KEY="your-key"
+cd <skill-dir>/scripts
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
-# Install & Run
-pip install -r scripts/requirements.txt
-python scripts/main.py "Write a technical blog post about microservices vs monoliths"
+# .env に GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY を設定
+python main.py "プロンプト"
 ```
 
-## Options
-
-```bash
-python scripts/main.py --verbose "prompt"    # Show all 3 stages
-python scripts/main.py --json "prompt"       # JSON output
-python scripts/main.py --raw "prompt"        # Raw LLM data
-
-# Custom models
-python scripts/main.py "prompt" \
-  --generator-model gemini-2.0-flash \
-  --critic-model claude-sonnet-4-20250514 \
-  --refiner-model gpt-4o
-```
-
-## Best For
-
-✅ Technical blog posts, white papers, comparative reports, documentation
-❌ Simple Q&A, real-time responses, web search tasks
-
-## Stages
-
-| Stage | Role | Default Provider | Output |
-|-------|------|-----------------|--------|
-| **Generator** | Creative draft | Gemini | `draft`, `key_points`, `confidence` |
-| **Critic** | Analysis & feedback | Claude | `strengths`, `weaknesses`, `suggestions`, `score` |
-| **Refiner** | Polish & finalize | OpenAI | `final_content`, `improvements_made`, `quality_score` |
-
----
-
-📖 Full documentation: [Main README](../../README.md) | [日本語](../../README_ja.md) | [한국어](../../README_ko.md)
+詳細は `scripts/` 内のコードとコメントを参照。

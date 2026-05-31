@@ -1,4 +1,4 @@
-# マルチLLM メタ認知パターン 依存関係
+# マルチLLM リフレクションパターン 依存関係
 
 # NOTE: 軽量エンジンへ移行したため agent-framework 依存は削除。
 # DevUIは現状サポート対象外。
@@ -12,7 +12,5 @@ python-dotenv>=1.2.1
 # 設定ファイル解析用
 pyyaml>=6.0.3
 
-# LLM SDKs
-openai>=2.15.0
-anthropic>=0.76.0
-google-genai>=1.60.0
+# 백엔드 = 구독 인증 CLI (claude / codex / agy) — provider REST SDK 불필요.
+# CLI 호출은 표준 라이브러리 subprocess 만 사용.
