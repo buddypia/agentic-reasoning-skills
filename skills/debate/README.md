@@ -1,203 +1,92 @@
-# Multi-LLM Debate（マルチLLM討論パターン）
+# Multi-LLM Debate — 설치·사용 가이드
 
-> ⚠️ **2026-05 更新**: バックエンドを**購読認証CLI**（Antigravity `agy` / Claude Code `claude` / Codex `codex`）に移行しました。**APIキーは不要**です（各CLIの購読認証を利用）。以下のAPIキー設定は旧バージョンの記述です。最新の利用方法は `SKILL.md` を参照してください。
+서로 다른 벤더의 LLM이 찬성·반대·중립 3역으로 토론하는 워크플로우.
+스킬 정의(호출 요약) → [SKILL.md](./SKILL.md)
 
-
-このREADMEは**プロンプト設計**と**環境設定**のまとめです。実行方法は `SKILL.md` を参照してください。
-
-## 対応状況（Status）
-
-- Claude Code ネイティブ: ✅ 対応（推奨・APIキー不要）
-- CLI (Python スクリプト): ✅ 対応（レガシー・APIキー必須）
-- DevUI: ❌ 非対応
-
-## 概要（Overview）
-
-このスキルは、複数のLLMエージェントが異なる視点から議論し、最良の解を導き出す**Debate（討論）パターン**を提供します。
-意思決定の質を高めるために、**前提・反証・リスク・代替案**を明示する「批判的思考」の型を重視します。
-
-**エージェント構成:**
-- **Proponent（賛成派）**: 支持・賛成の視点で分析
-- **Opponent（反対派）**: 批判・反対の視点で分析
-- **Moderator（中立派）**: 両者を客観的に評価し最終判断
-
-### 実行モード
-
-| モード | 説明 | APIキー | セットアップ |
-|--------|------|---------|-------------|
-| **Claude Code ネイティブ**（推奨） | Task ツールで3つのサブエージェントを起動 | 不要 | 不要 |
-| CLI (Python) | 外部 LLM API を直接呼び出し | 必要 | venv + pip install |
-
-## いつ使うべきか（When to Use）
-
-### 効果的なケース
-
-| シナリオ | 具体例 |
-|---------|--------|
-| 重要な意思決定 | 「新規事業に参入すべきか？」「M&Aを実行すべきか？」 |
-| 技術選定 | 「マイクロサービス vs モノリス」「React vs Vue」 |
-| ポリシー策定 | 「リモートワーク導入の是非」「AI利用ガイドライン」 |
-| 投資判断 | 「この株に投資すべきか？」「設備投資のタイミング」 |
-| リスク分析 | 「新製品リリースのリスク」「海外展開のリスク」 |
-| 倫理的判断 | 「顔認証技術の導入」「データ収集の範囲」 |
-
-### 使わない方が良いケース
-
-- 事実確認・情報検索（討論の余地がない）
-- 明確な正解がある問題
-- クリエイティブな生成（Reflectionパターンの方が適切）
-- 単純な要約・翻訳
-- 緊急対応（討論している時間がない）
-
-## ワークフロー（Workflow）
+## 동작 방식
 
 ```
-[ユーザーの討論テーマ]
-      ↓
-[Proponent（賛成派）] → position, arguments, evidence, benefits
-      ↓
-[Opponent（反対派）] → counter_arguments, risks, weaknesses, alternatives
-      ↓
-[Moderator（中立派）] → scores, verdict, recommendation
-      ↓
-[討論結果]
+[주제] → Proponent(찬성) → Opponent(반대) → Moderator(중립 평가) → 통합 표시
+          agy/Gemini3.5     claude/opus-4-8   codex/gpt-5.5(xhigh)
+```
+각 역할은 독립 컨텍스트에서 지정 역할에만 근거해 구조화 JSON을 출력하며, 앞 단계 출력을 다음 단계가 참고한다.
+
+## 설치
+
+### 1. CLI 백엔드 (구독 인증 · API 키 불필요)
+
+| CLI | 역할 | 설치 | 인증 |
+|-----|------|------|------|
+| `agy` (Antigravity CLI) | 찬성 | https://antigravity.google → 설치 후 `agy install` | `agy` 최초 실행 시 OAuth |
+| `claude` (Claude Code) | 반대 | `npm i -g @anthropic-ai/claude-code` | `claude` 실행 → 로그인(구독) |
+| `codex` (Codex CLI) | 중립 | `npm i -g @openai/codex` | `codex login` (ChatGPT 구독) |
+
+설치/인증 확인:
+```bash
+command -v agy claude codex      # 3개 경로가 모두 출력되면 OK
 ```
 
-## 批判的思考の指針（Critical Thinking）
-
-以下の観点を含むプロンプト設計を推奨します（業務意思決定の標準的な評価軸に沿った整理）。
-
-- **前提/制約**: 何が事実で、何が仮定か
-- **評価基準**: 成功指標・コスト・期限・リスク許容度
-- **反証/反例**: 反対意見の最強の根拠
-- **代替案**: 第三案・段階導入・限定適用など
-
-## プロンプト設計（Prompts）
-
-### 入力形式（推奨）
-
-> **重要**: 討論トピックだけでなく、**コンテキスト情報**も一緒に入力すると、より質の高い討論結果が得られます。
-
-```
-[討論トピック]
-質問または議題
-
-[コンテキスト]
-- 背景情報、制約条件、前提条件
-- 目的・評価基準（KPI、期限、コスト）
-- リスク許容度・コンプライアンス要件
-- 関連するドメイン知識
-- 検討すべき観点や優先事項
-```
-
-**入力例:**
-```
-AIエージェントを顧客サポートに導入すべきか？
-
-[コンテキスト]
-- B2B SaaS企業（従業員500名、顧客数2000社）
-- 現在の平均応答時間: 4時間
-- 月間問い合わせ件数: 約3000件
-- 予算制約: 年間500万円以内
-- 既存CRMはSalesforceを使用
-- セキュリティ要件: SOC2準拠必須
-```
-
-### プロンプトのカスタマイズ
-
-各ロールのシステムプロンプトは外部ファイルから読み込みます。
-
-```
-assets/prompts/
-  proponent.txt
-  opponent.txt
-  moderator.txt
-```
-
-## 注意事項（Security & Privacy）
-
-- 討論結果には入力内容に基づく分析が含まれます。機密情報が含まれる場合は共有・公開に注意してください。
-- CLIモード使用時: `.env` や `config.yaml` に API キーを保存する場合は、公開リポジトリへコミットしないようにしてください。
-
----
-
-## CLIモード（レガシー: APIキー必須）
-
-以下は Python スクリプトによる従来の実行方法です。外部 LLM API (Gemini/Anthropic/OpenAI) を直接呼び出すため、各プロバイダーの API キーが必要です。
-
-### デフォルトプロバイダー
-
-- **Proponent（賛成派）**: Gemini (`gemini-3.5-flash`)
-- **Opponent（反対派）**: Anthropic Claude (`claude-opus-4-8`)
-- **Moderator（中立派）**: OpenAI (`gpt-5.5`)
-
-### Python バージョン
+### 2. Python venv (최초 1회)
 
 ```bash
 cd <skill-dir>/scripts
-python3.13 --version  # Python 3.13+ が必要
+python3.13 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt   # pydantic / python-dotenv / pyyaml 만 (LLM SDK 불필요)
 ```
+`run.sh` 경유 시 venv는 자동 활성화된다.
 
-### venv + 依存関係のインストール
+## 사용법
 
+### run.sh (권장)
 ```bash
-cd <skill-dir>/scripts
-python3.13 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+<skill-dir>/scripts/run.sh "AI를 고객지원에 도입해야 하는가?
+
+[컨텍스트]
+- B2B SaaS / 월 문의 3000건 / 예산 연 500만엔 / SOC2 준수 필수"
+
+<skill-dir>/scripts/run.sh --verbose "..."   # 3역 상세 출력
+<skill-dir>/scripts/run.sh --json    "..."   # JSON 출력
 ```
 
-### 環境変数（API キー）
-
+### 직접 실행 / 모델 오버라이드
 ```bash
-cp env.example .env
-# もしくは必要項目のみ手動で作成
-cat > .env << 'EOT'
-GEMINI_API_KEY=your_gemini_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
-OPENAI_API_KEY=your_openai_api_key
-EOT
+source scripts/.venv/bin/activate
+python scripts/main.py "주제" \
+    --proponent-model gemini-3.5-flash \
+    --opponent-model  claude-opus-4-8 \
+    --moderator-model gpt-5.5
+# 프로바이더 교체: --proponent-provider {gemini|anthropic|openai|mock}
 ```
 
-### 設定ファイル（オプション）
+## 환경 변수
 
-モデルや温度などを固定したい場合は `config.yaml` / `config.json` を作成します。`config.example` を `config.yaml` にコピーして利用できます。
+| 변수 | 기본 | 용도 |
+|------|------|------|
+| `MULTILLM_REASONING_EFFORT` | `xhigh` | Codex 추론 강도 (none/low/medium/high/xhigh) |
+| `MULTILLM_CLI_TIMEOUT` | `360` | CLI 호출 타임아웃(초) |
+| `MULTILLM_AGY_PRINT_TIMEOUT` | `5m` | agy `--print-timeout` |
+| `MULTILLM_CLAUDE_MODEL` / `MULTILLM_CODEX_MODEL` | — | 백엔드별 모델 오버라이드 |
+| `DEBATE_{PROPONENT,OPPONENT,MODERATOR}_{PROVIDER,MODEL}` | — | 역할별 오버라이드 |
 
-### 設定の優先順位（Configuration Priority）
+## 오프라인 계약 테스트 (mock — CLI/네트워크 불필요)
+```bash
+DEBATE_PROPONENT_PROVIDER=mock DEBATE_OPPONENT_PROVIDER=mock DEBATE_MODERATOR_PROVIDER=mock \
+  python scripts/main.py --no-config "test"
+```
 
-高い順:
-1. **CLI引数**（`--proponent-model`, `--opponent-provider`, etc.）
-2. **環境変数**（`DEBATE_<ROLE>_<KEY>` または `<PROVIDER>_API_KEY`）
-3. **設定ファイル**（`config.yaml` / `config.json`）
-4. **デフォルト値**
+## 문제 해결
 
-### 互換性メモ（Structured Output）
+| 증상 | 대처 |
+|------|------|
+| `agy/claude/codex: command not found` | 위 설치 + PATH 확인 |
+| `... 실패 (exit ...)` / 인증 에러 | 해당 CLI를 대화형으로 1회 실행해 로그인 |
+| 타임아웃 | `MULTILLM_CLI_TIMEOUT` 증가 (xhigh는 시간이 걸림) |
+| `Prompt file not found` | `assets/prompts/*.txt` 동봉 여부 확인 |
+| 출력 비어있음 / JSON 깨짐 | `--verbose`로 각 단계 원시 출력 확인 |
 
-- OpenAI: `response_format: json_schema` を利用します。構造化出力対応モデルを使用してください。
-- Anthropic: `beta.messages.parse` による構造化出力を利用します。
-- Gemini: `response_json_schema` を利用します。一部モデルは schema の順序に敏感なため内部で補正しています。
+## 아키텍처 (요약)
 
-## リソース（Resources）
-
-### scripts/
-
-討論ワークフローを実行するPythonスクリプト（CLIモード用）:
-- `main.py`: エントリーポイント
-  - `requirements.txt`: 依存関係
-  - `workflow/`: ワークフロー実装モジュール（軽量エンジン + プロバイダーアダプタ）
-
-### assets/
-
-- `assets/prompts/`: ロール別プロンプト（Claude Code ネイティブモード・CLIモード共通）
-
-## 関連パターン（Related Patterns）
-
-| パターン | 特徴 | 適用例 |
-|---------|------|-------|
-| **Debate（本スキル）** | 対立する視点から分析 → 中立評価 | 意思決定、リスク分析、技術選定 |
-| **Reflection** | 生成 → 批評 → 改善の反復 | 文章生成、コード改善、クリエイティブ作業 |
-| **Recursive Meta-Cognition** | 分解→解決→検証→統合→反省の5段階 | 複雑な問題解決、アーキテクチャ設計 |
-
-## License
-
-MIT License. 詳細は `LICENSE` を参照してください。
+- `scripts/workflow/providers.py`의 3개 어댑터(Claude/Codex/Antigravity)가 `generate_structured()` 구현. 역할 executor·workflow는 무개조.
+- 구조화 출력: claude `--output-format json --json-schema`(네이티브), codex `--output-schema`(네이티브), agy는 평문→JSON 지시+Pydantic 검증.
+- 장문은 전부 stdin 경유(ARG_MAX/이스케이프 회피). agy는 tempdir cwd로 격리(`.antigravitycli` litter 방지).
+- 구독 인증만 사용, API 키 불필요.

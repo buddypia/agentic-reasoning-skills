@@ -3,181 +3,28 @@ name: multi-llm-recursive-meta-cognition
 description: Recursive Meta-Cognition（再帰的メタ認知）を使用したワークフローを実行するスキル。複数の異なるLLMを順次組み合わせて、高品質なコンテンツを生成する（5段階 分解→解決→検証→統合→反省）。
 ---
 
-# Recursive Meta-Cognition（再帰的メタ認知）
+# Multi-LLM Recursive Meta-Cognition
 
-환경/설정 정보는 README.md를 참고하세요.
+서로 다른 벤더의 CLI(Antigravity `agy` / Claude Code `claude` / Codex `codex`)를 **분해→해결→검증→통합→반성** 5단계로 순차 실행하는 재귀적 메타인지 워크플로우. **API 키 불필요**(각 CLI의 구독 인증 사용).
 
-## 前提条件（CLIバックエンド）
-
-**APIキー不要** — 各CLIの購読認証（subscription）を利用する。3つのCLIがインストール済み・**認証済み**であること:
-
-| ステージ | CLI | モデル |
-|----------|-----|--------|
-| 分解 Decomposer / 解決 Solver | `agy`（Antigravity CLI） | Gemini 3.5 Flash (High) |
-| 検証 Verifier | `claude`（Claude Code） | `claude-opus-4-8` |
-| 統合 Integrator / 反省 Reflector | `codex`（Codex CLI） | `gpt-5.5`（reasoning xhigh） |
-
-長文（long-form）入力は **stdin 経由**で各CLIに渡され、構造化出力（JSON）で次段へ受け渡される。推論強度は環境変数 `MULTILLM_REASONING_EFFORT`（既定 `xhigh`）、タイムアウトは `MULTILLM_CLI_TIMEOUT`（既定 360 秒）で調整可能。
-
-## 使用方法（Usage）
-
-> ⚠️ **必須**: venv を有効化して実行すること。進行中は出力が出ない場合があり、**完了まで時間がかかる**ことがある。
-
-### venv 環境設定
-
-- [x] venv インストール済み（チェック済みならセットアップをスキップ）
-
-> ⬆️ **AI向け**: 上記にチェック `[x]` がある場合、セットアップをスキップしてください。
-> チェックがない `[ ]` 場合のみ、以下を実行してください:
+## 실행 (이것만)
 
 ```bash
-cd <skill-dir>/scripts
-python3.13 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+<skill-dir>/scripts/run.sh "해결/작성할 문제 (컨텍스트도 함께 적으면 품질↑)"
+# 5단계 상세: --verbose   |   JSON 출력: --json
 ```
 
-### 入力形式（推奨）
+`run.sh`가 venv를 자동 활성화한다. **초기 1회 설치**가 필요 → [README.md](./README.md)
 
-> 💡 **重要**: プロンプトだけでなく、**コンテキスト情報**も一緒に入力すると、より質の高い出力が得られます。
+## 전제 (미인증이면 실행 불가)
 
-```
-[タスク/質問]
-解決したい問題や作成したい内容
+| 단계 | CLI | 기본 모델 |
+|------|-----|----------|
+| 분해 Decomposer / 해결 Solver | `agy` | Gemini 3.5 Flash |
+| 검증 Verifier | `claude` | claude-opus-4-8 |
+| 통합 Integrator / 반성 Reflector | `codex` | gpt-5.5 (reasoning xhigh) |
 
-[コンテキスト]
-- 背景情報、制約条件、前提条件
-- 関連するドメイン知識
-- 期待する出力形式や優先事項
-```
+`command -v agy claude codex` 로 3개가 모두 잡히고 각각 로그인돼 있어야 한다.
+**설치·인증·모델/환경변수 오버라이드·문제 해결 → [README.md](./README.md)**
 
-**入力例:**
-```
-新規SaaSプロダクトの技術アーキテクチャを設計して
-
-[コンテキスト]
-- プロダクト: B2B向け請求管理システム
-- 想定ユーザー数: 初年度1000社、3年後10000社
-- 技術スタック: 未定（提案求む）
-- 制約: AWSを使用、SOC2準拠必須
-- チーム: エンジニア3名（フルスタック）
-- 予算: インフラ月額50万円以内
-```
-
-### CLIモード（推奨: run.sh ラッパー）
-
-```bash
-# run.sh を使うと venv が自動で有効化される（推奨）
-
-# シンプルなプロンプト
-<skill-dir>/scripts/run.sh "2026年の最新AI技術トレンドを調査して要約してください"
-
-# コンテキスト情報を含めた入力（推奨）
-<skill-dir>/scripts/run.sh "新規SaaSの技術アーキテクチャを設計して
-
-[コンテキスト]
-- プロダクト: B2B請求管理システム
-- 想定規模: 初年度1000社
-- 制約: AWS、SOC2準拠必須"
-
-# 詳細出力（5ステージ全表示）
-<skill-dir>/scripts/run.sh --verbose "ChatGPT vs Claude vs Gemini の比較を調べてまとめて"
-
-# JSON出力
-<skill-dir>/scripts/run.sh --json "プロンプトエンジニアリングのコツをまとめて"
-```
-
-### CLIモード（直接実行 - venv手動有効化が必要）
-
-```bash
-# venv 有効化後に実行すること
-# 基本的な使用（最終結果のみ出力）
-python main.py "2026年の最新AI技術トレンドを調査して要約してください"
-
-# 詳細出力（5ステージ全表示）
-python main.py --verbose "ChatGPT vs Claude vs Gemini の比較を調べてまとめて"
-
-# JSON出力（プログラムで後処理する場合）
-python main.py --json "プロンプトエンジニアリングのコツをまとめて"
-
-# カスタムモデル指定（コスト最適化や高速化が必要な場合）
-python main.py "量子コンピュータの最新動向を調査" \
-    --decomposer-model gemini-3.5-flash \
-    --solver-model gemini-3.5-flash \
-    --verifier-model claude-sonnet-4-6 \
-    --integrator-model gpt-5.5 \
-    --reflector-model gpt-5.5
-```
-
-### DevUIモード（Web UI）
-
-DevUIは軽量エンジン移行のため現在サポートされていない。
-
-### 出力例
-
-#### 標準出力（オプションなし）
-
-```
-最終版のコンテンツがここに出力されます...
-```
-
-#### 詳細出力（--verbose）
-
-```
-======================================================================
-リフレクション ワークフロー 結果（5段階）
-======================================================================
-
---- 元のプロンプト ---
-AI技術トレンドを要約してください
-
---- ステージ1: 分解 (Decomposer) ---
-モデル: gemini-3.5-flash
-確信度: 0.82
-サブタスク:
-  - 主要トレンドの抽出
-  - 事例の提示
-  - 影響の整理
-
---- ステージ2: 解決 (Solver) ---
-モデル: gemini-3.5-flash
-確信度: 0.80
-解決案:
-  * 主要トレンドの抽出: ...
-  * 事例の提示: ...
-  * 影響の整理: ...
-
---- ステージ3: 検証 (Verifier) ---
-モデル: claude-opus-4-8
-確信度: 0.78
-問題点:
-  - 最新事例の具体性が不足
-修正案:
-  - 具体例の追加
-自律修正:
-  - 曖昧表現を削除
-
---- ステージ4: 統合 (Integrator) ---
-モデル: gpt-5.5
-確信度: 0.86
-反映した修正点:
-  - 具体例を追加
-
---- ステージ5: 反省 (Reflector) ---
-モデル: gpt-5.5
-確信度スコア: 0.84
-不確実性:
-  - 最新動向の更新タイミング
-自律修正:
-  - 影響評価を補強
-反省:
-  - 業界別の視点が薄い
-
-### 最終コンテンツ ###
-
-[改善された最終版コンテンツ]
-
-----------------------------------------------------------------------
-総処理時間: 62.14秒
-======================================================================
-```
+> ⚠️ 5단계라 **완료까지 수 분** 걸릴 수 있다(진행 중 출력이 없을 수 있음). 장문 입력은 stdin으로 전달된다.
